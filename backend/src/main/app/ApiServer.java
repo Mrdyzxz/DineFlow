@@ -30,25 +30,29 @@ public class ApiServer {
     private static RestaurantService service;
 
     public static void main(String[] args) throws IOException {
-        service = new RestaurantService();
-        addSampleFoodItems();
+    service = new RestaurantService();
+    addSampleFoodItems();
 
-        int port = args.length > 0 ? Integer.parseInt(args[0]) : 8080;
+    String portValue = System.getenv("PORT");
 
-        HttpServer server = HttpServer.create(
-                new InetSocketAddress(port), 0
-        );
+    int port = portValue != null
+            ? Integer.parseInt(portValue)
+            : (args.length > 0 ? Integer.parseInt(args[0]) : 8080);
 
-        server.createContext("/api/foods", ApiServer::handleFoods);
-        server.createContext("/api/orders", ApiServer::handleOrders);
+    HttpServer server = HttpServer.create(
+            new InetSocketAddress("0.0.0.0", port), 0
+    );
 
-        server.start();
+    server.createContext("/api/foods", ApiServer::handleFoods);
+    server.createContext("/api/orders", ApiServer::handleOrders);
 
-        System.out.println("================================");
-        System.out.println("       DINEFLOW API SERVER");
-        System.out.println("================================");
-        System.out.println("Server running at http://localhost:" + port);
-    }
+    server.start();
+
+    System.out.println("================================");
+    System.out.println("       DINEFLOW API SERVER");
+    System.out.println("================================");
+    System.out.println("Server running on port: " + port);
+}
 
    
 private static void addSampleFoodItems() {
