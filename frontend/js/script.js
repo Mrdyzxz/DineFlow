@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // CONFIGURATION
     // ==========================================
 
-    const API_URL = "http://localhost:8080/api";
+    const API_URL = "https://dineflow-api-g1a3.onrender.com/api";
 
     // ==========================================
 // FOOD IMAGE MAPPING
