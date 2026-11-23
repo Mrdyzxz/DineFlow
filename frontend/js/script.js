@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // CONFIGURATION
     // ==========================================
 
-    const API_URL = "https://dineflow-api-g1a3.onrender.com/api";
+   const API_URL = "https://dineflow-api-g1a3.onrender.com/api";
 
     // ==========================================
 // FOOD IMAGE MAPPING
@@ -762,44 +762,54 @@ function getFoodImage(food) {
         });
     }
 
-    document.getElementById("downloadReceiptBtn")
-        .addEventListener("click", () => {
+    
+document.getElementById("downloadReceiptBtn")
+    .addEventListener("click", () => {
 
-            if (!currentOrder) return;
+        if (!currentOrder) return;
 
-            const lines = [
-                "DINEFLOW",
-                "SELF-SERVICE FOOD ORDERING",
-                "--------------------------------",
-                `Order Number: ${currentOrder.id}`,
-                `Customer: ${customerDetails.name}`,
-                `Contact: ${customerDetails.contact}`,
-                `Dining: ${currentOrder.diningOption}`,
-                "--------------------------------",
-                "ORDER ITEMS"
-            ];
+        const downloadBtn = document.getElementById("downloadReceiptBtn");
 
-            currentOrder.items.forEach(item => {
+        if (downloadBtn.classList.contains("is-downloading")) return;
 
-                lines.push(
-                    `${item.name} x ${item.quantity}`
-                );
+        downloadBtn.disabled = true;
+        downloadBtn.classList.remove("is-complete");
+        downloadBtn.classList.add("is-downloading");
 
-                lines.push(
-                    `Subtotal: ${formatCurrency(item.subtotal)}`
-                );
-            });
+        const lines = [
+            "DINEFLOW",
+            "SELF-SERVICE FOOD ORDERING",
+            "--------------------------------",
+            `Order Number: ${currentOrder.id}`,
+            `Customer: ${customerDetails.name}`,
+            `Contact: ${customerDetails.contact}`,
+            `Dining: ${currentOrder.diningOption}`,
+            "--------------------------------",
+            "ORDER ITEMS"
+        ];
 
-            lines.push("--------------------------------");
-            lines.push(`TOTAL: ${formatCurrency(currentOrder.total)}`);
-            lines.push(`Payment: ${currentOrder.paymentMethod}`);
-            lines.push(`Status: ${currentOrder.paymentStatus}`);
-            lines.push("--------------------------------");
-            lines.push("Thank you for ordering!");
-            lines.push("Please come again.");
+        currentOrder.items.forEach(item => {
+
+            lines.push(
+                `${item.name} x ${item.quantity}`
+            );
+
+            lines.push(
+                `Subtotal: ${formatCurrency(item.subtotal)}`
+            );
+        });
+
+        lines.push("--------------------------------");
+        lines.push(`TOTAL: ${formatCurrency(currentOrder.total)}`);
+        lines.push(`Payment: ${currentOrder.paymentMethod}`);
+        lines.push(`Status: ${currentOrder.paymentStatus}`);
+        lines.push("--------------------------------");
+        lines.push("Thank you for ordering!");
+        lines.push("Please come again.");
+
+        try {
 
             const pdfBlob = createPDF(lines);
-
             const downloadURL = URL.createObjectURL(pdfBlob);
 
             const link = document.createElement("a");
@@ -811,8 +821,25 @@ function getFoodImage(food) {
             link.click();
             link.remove();
 
-            URL.revokeObjectURL(downloadURL);
-        });
+            setTimeout(() => {
+                URL.revokeObjectURL(downloadURL);
+            }, 1000);
+
+            downloadBtn.classList.remove("is-downloading");
+            downloadBtn.classList.add("is-complete");
+
+            downloadBtn.disabled = false;
+
+        } catch (error) {
+
+            console.error("Receipt download failed:", error);
+
+            downloadBtn.classList.remove("is-downloading");
+            downloadBtn.disabled = false;
+
+            alert("Unable to download receipt. Please try again.");
+        }
+    });
 
     // ==========================================
     // START NEW ORDER
