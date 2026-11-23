@@ -953,3 +953,224 @@ button:disabled {
 .ewallet-notice {
     margin: 12px auto 20px;
 }
+
+/* ===== WELCOME SCREEN: GLASS BEGIN BUTTON ===== */
+
+#welcomeScreen #beginBtn {
+    position: relative;
+    overflow: hidden;
+
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow:
+        0 8px 25px rgba(0, 0, 0, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+
+    letter-spacing: 3px;
+
+    transition:
+        transform 0.3s ease,
+        box-shadow 0.3s ease,
+        filter 0.3s ease;
+}
+
+/* Subtle shine */
+#welcomeScreen #beginBtn::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 60%;
+    height: 100%;
+
+    background: linear-gradient(
+        120deg,
+        transparent,
+        rgba(255, 255, 255, 0.35),
+        transparent
+    );
+
+    transform: skewX(-20deg);
+    transition: left 0.65s ease;
+}
+
+#welcomeScreen #beginBtn:hover::before {
+    left: 150%;
+}
+
+#welcomeScreen #beginBtn:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    filter: brightness(1.08);
+}
+
+#welcomeScreen #beginBtn:active {
+    transform: scale(0.97);
+}
+
+/* Welcome decorative sparkle */
+#welcomeScreen::after {
+    content: "✦";
+    position: absolute;
+    bottom: 25px;
+    left: 25px;
+
+    font-size: 22px;
+    opacity: 0.55;
+
+    animation: welcomeSparkle 2.5s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes welcomeSparkle {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 0.35;
+    }
+
+    50% {
+        transform: translateY(-6px) rotate(20deg);
+        opacity: 0.85;
+    }
+}
+/* ===== DINEFLOW GLASS MENU CARDS ===== */
+
+.food-card,
+.menu-card {
+    background: rgba(255, 255, 255, 0.60) !important;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 24px;
+
+    box-shadow:
+        0 8px 30px rgba(23, 35, 56, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+
+    transition:
+        transform 0.3s ease,
+        box-shadow 0.3s ease,
+        border-color 0.3s ease,
+        background 0.3s ease;
+}
+
+.food-card:hover,
+.menu-card:hover {
+    transform: translateY(-5px);
+
+    background: rgba(255, 255, 255, 0.78) !important;
+
+    border-color: rgba(212, 175, 55, 0.55);
+
+    box-shadow:
+        0 15px 35px rgba(23, 35, 56, 0.10),
+        0 0 15px rgba(212, 175, 55, 0.05);
+}
+
+/* Touchscreen press effect */
+.food-card:active,
+.menu-card:active {
+    transform: scale(0.98);
+}
+
+/* ===== DINEFLOW LIQUID DOWNLOAD BUTTON ===== */
+
+.liquid-download {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 16px;
+
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+
+    color: #a98216;
+    box-shadow: 0 8px 25px rgba(23, 35, 56, 0.08);
+
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.liquid-download:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(212, 175, 55, 0.15);
+}
+
+.liquid-download .liquid-fill {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+
+    background: #d4af37;
+    transform: translateY(100%);
+    transition: transform 1.5s cubic-bezier(.2,.7,.2,1);
+}
+
+.liquid-download .liquid-fill::before {
+    content: "";
+    position: absolute;
+    top: -12px;
+    left: -50%;
+
+    width: 200%;
+    height: 24px;
+
+    background: rgba(255, 255, 255, 0.45);
+    border-radius: 50%;
+
+    animation: liquid-wave 2s linear infinite;
+}
+
+.liquid-download.is-downloading .liquid-fill {
+    transform: translateY(0);
+}
+
+.liquid-download.is-complete {
+    background: #d4af37;
+    color: #202c40;
+}
+
+.liquid-download .download-label {
+    position: relative;
+    z-index: 2;
+}
+
+.liquid-download .checkmark {
+    display: none;
+}
+
+.liquid-download.is-complete .download-label {
+    display: none;
+}
+
+.liquid-download.is-complete .checkmark {
+    display: inline-block;
+    animation: check-pop 0.4s ease;
+}
+
+@keyframes liquid-wave {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(50%);
+    }
+}
+
+@keyframes check-pop {
+    0% {
+        transform: scale(0.4);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
