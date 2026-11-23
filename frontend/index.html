@@ -19,7 +19,7 @@
                 Delicious food. Easy ordering. A better dining experience.
             </p>
             <button id="beginBtn" class="primary-btn begin-btn">
-                TOUCH TO BEGIN
+                BEGIN
             </button>
         </div>
     </section>
@@ -36,19 +36,19 @@
             <h1>Where will you enjoy your meal?</h1>
             <p class="muted">Please select your dining preference.</p>
 
-            <div class="dining-options">
-                <button class="dining-card" data-option="Dine In">
-                    <span class="option-icon">🍽️</span>
-                    <h2>DINE IN</h2>
-                    <p>Enjoy your meal here.</p>
-                </button>
+           
+<div class="dining-options">
+    <button class="dining-card" data-option="Dine In">
+        <h2>DINE IN</h2>
+        <p>Enjoy your meal here.</p>
+    </button>
 
-                <button class="dining-card" data-option="Take Out">
-                    <span class="option-icon">🥡</span>
-                    <h2>TAKE OUT</h2>
-                    <p>Take your food with you.</p>
-                </button>
-            </div>
+    <button class="dining-card" data-option="Take Out">
+        <h2>TAKE OUT</h2>
+        <p>Take your food with you.</p>
+    </button>
+</div>
+
         </main>
     </section>
 
@@ -170,19 +170,19 @@
             <h1>Choose Your Payment Method</h1>
             <p class="muted">Select how you would like to pay.</p>
 
-            <div class="payment-options">
-                <button class="payment-card" data-payment="cash">
-                    <span>💵</span>
-                    <h2>Cash</h2>
-                    <p>Pay with cash at the counter.</p>
-                </button>
+            
+<div class="payment-options">
+    <button class="payment-card" data-payment="cash">
+        <h2>Cash</h2>
+        <p>Pay with cash at the counter.</p>
+    </button>
 
-                <button class="payment-card" data-payment="ewallet">
-                    <span>📱</span>
-                    <h2>E-Wallet</h2>
-                    <p>Demo GCash / Maya payment.</p>
-                </button>
-            </div>
+    <button class="payment-card" data-payment="ewallet">
+        <h2>E-Wallet</h2>
+        <p>Demo GCash / Maya payment.</p>
+    </button>
+</div>
+
 
 
 <div id="ewalletPanel" class="ewallet-panel hidden">
@@ -239,14 +239,19 @@
                 <p>Payment: <strong id="receiptPayment">—</strong></p>
             </div>
 
-            <div class="confirmation-actions">
-                <button id="downloadReceiptBtn" class="primary-btn">
-                    DOWNLOAD RECEIPT
-                </button>
-                <button id="newOrderBtn" class="secondary-btn">
-                    START NEW ORDER
-                </button>
-            </div>
+            
+<div class="confirmation-actions">
+    <button id="downloadReceiptBtn" class="primary-btn liquid-download">
+        <span class="liquid-fill"></span>
+        <span class="download-label">DOWNLOAD RECEIPT</span>
+        <span class="checkmark">✓ DOWNLOAD COMPLETE</span>
+    </button>
+
+    <button id="newOrderBtn" class="secondary-btn">
+        START NEW ORDER
+    </button>
+</div>
+
         </main>
     </section>
 
