@@ -223,9 +223,54 @@
     <section id="confirmationScreen" class="screen">
         <main class="confirmation-container">
             <div class="success-icon">✓</div>
-            <p class="eyebrow">ORDER COMPLETED</p>
+            <p class="eyebrow">ORDER CONFIRMED</p>
             <h1>Thank You!</h1>
-            <p>Your order has been successfully processed.</p>
+            <p>Your order has been successfully processed. Follow its preparation progress below.</p>
+
+            <section class="order-tracking" aria-labelledby="trackingTitle">
+                <header class="tracking-header">
+                    <div>
+                        <p class="eyebrow">LIVE ORDER STATUS</p>
+                        <h2 id="trackingTitle">Track your order</h2>
+                    </div>
+                    <span id="trackingCurrentStatus" class="tracking-current-status">
+                        Pending
+                    </span>
+                </header>
+                <p id="trackingMessage" class="tracking-message" role="status" aria-live="polite">
+                    Loading your latest order status...
+                </p>
+                <ol id="orderProgress" class="order-progress">
+                    <li class="tracking-step" data-status="Pending">
+                        <span class="tracking-step-marker">1</span>
+                        <span class="tracking-step-label">
+                            <strong>Order Received</strong>
+                            <small>Pending</small>
+                        </span>
+                    </li>
+                    <li class="tracking-step" data-status="Processing">
+                        <span class="tracking-step-marker">2</span>
+                        <span class="tracking-step-label">
+                            <strong>Preparing Your Order</strong>
+                            <small>Processing</small>
+                        </span>
+                    </li>
+                    <li class="tracking-step" data-status="Ready">
+                        <span class="tracking-step-marker">3</span>
+                        <span class="tracking-step-label">
+                            <strong>Ready for Pickup</strong>
+                            <small>Ready</small>
+                        </span>
+                    </li>
+                    <li class="tracking-step" data-status="Completed">
+                        <span class="tracking-step-marker">4</span>
+                        <span class="tracking-step-label">
+                            <strong>Order Completed</strong>
+                            <small>Completed</small>
+                        </span>
+                    </li>
+                </ol>
+            </section>
 
             <div class="receipt-summary">
                 <h2>Order Receipt</h2>
@@ -237,6 +282,7 @@
                     <strong id="receiptTotal">₱0.00</strong>
                 </div>
                 <p>Payment: <strong id="receiptPayment">—</strong></p>
+                <p>Payment Status: <strong id="receiptPaymentStatus">—</strong></p>
             </div>
 
             

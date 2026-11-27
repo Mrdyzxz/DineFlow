@@ -1,6 +1,8 @@
 
 package service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -80,6 +82,39 @@ public class RestaurantService {
         order.updateStatus("Processing");
     }
 
+    public Order updateOrderStatus(int orderId, String orderStatus) {
+        Order order = findOrder(orderId);
+
+        if (order == null) {
+            throw new IllegalArgumentException("Order not found.");
+        }
+
+        order.updateStatus(orderStatus);
+        return order;
+    }
+
+    public Order findOrderByTrackingToken(String trackingToken) {
+        if (trackingToken == null
+                || !trackingToken.matches("[A-Za-z0-9_-]{43}")) {
+            return null;
+        }
+
+        byte[] requestedToken =
+                trackingToken.getBytes(StandardCharsets.US_ASCII);
+        Order matchingOrder = null;
+
+        for (Order order : orders) {
+            byte[] orderToken = order.getTrackingToken()
+                    .getBytes(StandardCharsets.US_ASCII);
+
+            if (MessageDigest.isEqual(orderToken, requestedToken)) {
+                matchingOrder = order;
+            }
+        }
+
+        return matchingOrder;
+    }
+
     // Process payment
     // Call this only after payment confirmation
     public void processPayment(Order order, Payment payment) {
@@ -89,8 +124,7 @@ public class RestaurantService {
             );
         }
 
-        if (order.getPayment() != null
-                || order.getOrderStatus().equals("Paid")) {
+        if (order.getPayment() != null) {
             throw new IllegalStateException(
                     "This order has already been paid."
             );
@@ -104,7 +138,6 @@ public class RestaurantService {
 
         order.setPayment(payment);
         payment.processPayment();
-        order.updateStatus("Paid");
     }
 
     // Display all orders
@@ -128,6 +161,16 @@ public class RestaurantService {
         for (FoodItem foodItem : foodItems) {
             if (foodItem.getFoodId() == foodId) {
                 return foodItem;
+            }
+        }
+
+        return null;
+    }
+
+    private Order findOrder(int orderId) {
+        for (Order order : orders) {
+            if (order.getOrderId() == orderId) {
+                return order;
             }
         }
 

@@ -49,6 +49,17 @@ function getFoodImage(food) {
     let customerDetails = {};
     let currentOrder = null;
     let paymentInProgress = false;
+    let orderTrackingTimer = null;
+    let orderTrackingId = null;
+    let orderTrackingGeneration = 0;
+    let activeOrderPollGeneration = null;
+
+    const ORDER_STAGES = [
+        { status: "Pending", label: "Order Received" },
+        { status: "Processing", label: "Preparing Your Order" },
+        { status: "Ready", label: "Ready for Pickup" },
+        { status: "Completed", label: "Order Completed" }
+    ];
 
     const screens = document.querySelectorAll(".screen");
 
@@ -628,10 +639,11 @@ function getFoodImage(food) {
                 );
             }
 
-            currentOrder = result;
+            currentOrder = { ...currentOrder, ...result };
 
             displayReceipt();
             showScreen("confirmationScreen");
+            startOrderTracking();
 
         } catch (error) {
 
@@ -686,6 +698,179 @@ function getFoodImage(food) {
                     </strong>
                 </div>
             `).join("");
+
+        document.getElementById("receiptPaymentStatus")
+            .textContent = currentOrder.paymentStatus || "Unpaid";
+    }
+
+    function stopOrderTracking() {
+        if (orderTrackingTimer !== null) {
+            window.clearInterval(orderTrackingTimer);
+            orderTrackingTimer = null;
+        }
+
+        orderTrackingId = null;
+        orderTrackingGeneration++;
+        activeOrderPollGeneration = null;
+    }
+
+    function setTrackingMessage(message, isError = false) {
+        const trackingMessage = document.getElementById("trackingMessage");
+        trackingMessage.textContent = message;
+        trackingMessage.classList.toggle("is-error", isError);
+    }
+
+    function renderOrderProgress(status) {
+        const stageIndex = ORDER_STAGES.findIndex(
+            stage => stage.status === status
+        );
+        const currentStatus = document.getElementById(
+            "trackingCurrentStatus"
+        );
+        const steps = document.getElementById("orderProgress")
+            .querySelectorAll(".tracking-step");
+
+        currentStatus.textContent = status || "Status unavailable";
+
+        steps.forEach((step, index) => {
+            step.classList.remove(
+                "is-completed",
+                "is-current",
+                "is-upcoming"
+            );
+
+            if (stageIndex < 0 || index > stageIndex) {
+                step.classList.add("is-upcoming");
+            } else if (index < stageIndex || status === "Completed") {
+                step.classList.add("is-completed");
+            } else {
+                step.classList.add("is-current");
+            }
+        });
+    }
+
+    function startOrderTracking() {
+        stopOrderTracking();
+
+        const orderId = Number(currentOrder && currentOrder.id);
+        if (!Number.isSafeInteger(orderId)
+                || orderId <= 0
+                || typeof currentOrder.trackingToken !== "string"
+                || !currentOrder.trackingToken) {
+            renderOrderProgress("");
+            setTrackingMessage(
+                "We couldn't start live tracking for this order.",
+                true
+            );
+            return;
+        }
+
+        orderTrackingId = orderId;
+        const generation = orderTrackingGeneration;
+        const trackingToken = currentOrder.trackingToken;
+        renderOrderProgress(
+            currentOrder.orderStatus || currentOrder.status
+        );
+        setTrackingMessage("Loading your latest order status...");
+
+        orderTrackingTimer = window.setInterval(() => {
+            refreshTrackedOrder(orderId, trackingToken, generation);
+        }, 5000);
+
+        refreshTrackedOrder(orderId, trackingToken, generation);
+    }
+
+    async function refreshTrackedOrder(orderId, trackingToken, generation) {
+        if (generation !== orderTrackingGeneration
+                || orderTrackingId !== orderId
+                || !currentOrder
+                || Number(currentOrder.id) !== orderId
+                || activeOrderPollGeneration === generation) {
+            return;
+        }
+
+        activeOrderPollGeneration = generation;
+
+        try {
+            const response = await fetch(
+                `${API_URL}/orders/tracking/${encodeURIComponent(trackingToken)}`
+            );
+            const latestOrder = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    if (orderTrackingTimer !== null) {
+                        window.clearInterval(orderTrackingTimer);
+                        orderTrackingTimer = null;
+                    }
+                    setTrackingMessage(
+                        "This order's tracking link is invalid or unavailable.",
+                        true
+                    );
+                    return;
+                }
+
+                throw new Error(
+                    latestOrder.error || "Unable to refresh order status."
+                );
+            }
+
+            if (generation !== orderTrackingGeneration
+                    || orderTrackingId !== orderId
+                    || !currentOrder
+                    || Number(currentOrder.id) !== orderId) {
+                return;
+            }
+
+            if (!latestOrder
+                    || Number(latestOrder.id) !== orderId
+                    || typeof latestOrder.orderStatus !== "string"
+                    || typeof latestOrder.paymentStatus !== "string") {
+                if (orderTrackingTimer !== null) {
+                    window.clearInterval(orderTrackingTimer);
+                    orderTrackingTimer = null;
+                }
+                setTrackingMessage(
+                    "This order's tracking data is invalid or unavailable.",
+                    true
+                );
+                return;
+            }
+
+            currentOrder = { ...currentOrder, ...latestOrder };
+            displayReceipt();
+
+            const status =
+                currentOrder.orderStatus || currentOrder.status;
+            renderOrderProgress(status);
+
+            if (status === "Completed") {
+                if (orderTrackingTimer !== null) {
+                    window.clearInterval(orderTrackingTimer);
+                    orderTrackingTimer = null;
+                }
+                setTrackingMessage(
+                    "Your order is completed. Live tracking has stopped."
+                );
+            } else {
+                setTrackingMessage(
+                    `Updated ${new Date().toLocaleTimeString()}. Checking again in 5 seconds.`
+                );
+            }
+        } catch (error) {
+            if (generation === orderTrackingGeneration
+                    && orderTrackingId === orderId) {
+                console.error("Order tracking error:", error);
+                setTrackingMessage(
+                    "Live tracking is temporarily unavailable. We'll retry automatically.",
+                    true
+                );
+            }
+        } finally {
+            if (activeOrderPollGeneration === generation) {
+                activeOrderPollGeneration = null;
+            }
+        }
     }
 
     // ==========================================
@@ -802,7 +987,10 @@ document.getElementById("downloadReceiptBtn")
         lines.push("--------------------------------");
         lines.push(`TOTAL: ${formatCurrency(currentOrder.total)}`);
         lines.push(`Payment: ${currentOrder.paymentMethod}`);
-        lines.push(`Status: ${currentOrder.paymentStatus}`);
+        lines.push(
+            `Order status: ${currentOrder.orderStatus || currentOrder.status || "Pending"}`
+        );
+        lines.push(`Payment status: ${currentOrder.paymentStatus || "Unpaid"}`);
         lines.push("--------------------------------");
         lines.push("Thank you for ordering!");
         lines.push("Please come again.");
@@ -848,6 +1036,7 @@ document.getElementById("downloadReceiptBtn")
     document.getElementById("newOrderBtn")
         .addEventListener("click", () => {
 
+            stopOrderTracking();
             cart = [];
             selectedCategory = "All";
             diningOption = "Dine In";

@@ -11,6 +11,7 @@ import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -24,13 +25,19 @@ import payment.CashPayment;
 import payment.EWalletPayment;
 import payment.Payment;
 import service.RestaurantService;
+import service.StaffAuthenticationService;
 
 public class ApiServer {
 
     private static RestaurantService service;
+    private static StaffAuthenticationService staffAuthentication;
 
     public static void main(String[] args) throws IOException {
     service = new RestaurantService();
+    staffAuthentication = new StaffAuthenticationService(
+            System.getenv("STAFF_USERNAME"),
+            System.getenv("STAFF_PASSWORD_HASH")
+    );
     addSampleFoodItems();
 
     String portValue = System.getenv("PORT");
@@ -45,6 +52,7 @@ public class ApiServer {
 
     server.createContext("/api/foods", ApiServer::handleFoods);
     server.createContext("/api/orders", ApiServer::handleOrders);
+    server.createContext("/api/staff", ApiServer::handleStaff);
 
     server.start();
 
@@ -54,7 +62,7 @@ public class ApiServer {
     System.out.println("Server running on port: " + port);
 }
 
-   
+
 private static void addSampleFoodItems() {
 
     // ==============================
@@ -127,10 +135,86 @@ private static void addSampleFoodItems() {
         } else if (method.equals("GET")) {
             getFoods(exchange);
         } else if (method.equals("POST")) {
+            if (!requireStaffAuthentication(exchange)) {
+                return;
+            }
             addFood(exchange);
         } else {
             sendResponse(exchange, 405,
                     errorJson("Method not allowed"));
+        }
+    }
+
+    private static void handleStaff(HttpExchange exchange)
+            throws IOException {
+
+        addCorsHeaders(exchange);
+
+        if (exchange.getRequestMethod().equals("OPTIONS")) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        String path = exchange.getRequestURI().getPath();
+
+        if (path.equals("/api/staff/login")
+                && exchange.getRequestMethod().equals("POST")) {
+            loginStaff(exchange);
+            return;
+        }
+
+        if (path.equals("/api/staff/logout")
+                && exchange.getRequestMethod().equals("POST")) {
+            if (!requireStaffAuthentication(exchange)) {
+                return;
+            }
+
+            staffAuthentication.revokeSession(
+                    getBearerToken(exchange)
+            );
+            sendResponse(exchange, 200, "{\"message\":\"Signed out\"}");
+            return;
+        }
+
+        if (path.equals("/api/staff/login")
+                || path.equals("/api/staff/logout")) {
+            sendResponse(exchange, 405,
+                    errorJson("Method not allowed"));
+        } else {
+            sendResponse(exchange, 404,
+                    errorJson("Staff endpoint not found"));
+        }
+    }
+
+    private static void loginStaff(HttpExchange exchange)
+            throws IOException {
+
+        if (staffAuthentication == null
+                || !staffAuthentication.isConfigured()) {
+            sendResponse(exchange, 503,
+                    errorJson("Staff login is not configured"));
+            return;
+        }
+
+        Map<String, List<String>> data = readForm(exchange);
+        String username = getValue(data, "username");
+        char[] password = getValue(data, "password").toCharArray();
+
+        try {
+            String token = staffAuthentication.createSession(
+                    username, password
+            );
+
+            if (token == null) {
+                sendResponse(exchange, 401,
+                        errorJson("Invalid staff credentials"));
+                return;
+            }
+
+            sendResponse(exchange, 200,
+                    "{\"token\":\"" + escapeJson(token) + "\"}");
+        } finally {
+            Arrays.fill(password, '\0');
         }
     }
 
@@ -247,9 +331,26 @@ private static void addSampleFoodItems() {
             return;
         }
 
-        if (path.matches("/api/orders/[0-9]+/payment")) {
-            if (method.equals("POST")) {
+        if (path.startsWith("/api/orders/tracking/")) {
+            if (method.equals("GET")) {
+                getTrackedOrder(exchange, path);
+            } else {
+                sendResponse(exchange, 405,
+                        errorJson("Method not allowed"));
+            }
+            return;
+        }
+
+        if (path.matches("/api/orders/[0-9]+/(payment|status)")) {
+            if (method.equals("POST")
+                    && path.endsWith("/payment")) {
                 confirmPayment(exchange, path);
+            } else if (method.equals("POST")
+                    && path.endsWith("/status")) {
+                if (!requireStaffAuthentication(exchange)) {
+                    return;
+                }
+                updateOrderStatus(exchange, path);
             } else {
                 sendResponse(exchange, 405,
                         errorJson("Method not allowed"));
@@ -265,6 +366,9 @@ private static void addSampleFoodItems() {
         }
 
         if (method.equals("GET")) {
+            if (!requireStaffAuthentication(exchange)) {
+                return;
+            }
             getOrders(exchange);
         } else if (method.equals("POST")) {
             addOrder(exchange);
@@ -272,6 +376,34 @@ private static void addSampleFoodItems() {
             sendResponse(exchange, 405,
                     errorJson("Method not allowed"));
         }
+    }
+
+    private static boolean requireStaffAuthentication(
+            HttpExchange exchange
+    ) throws IOException {
+        if (staffAuthentication != null
+                && staffAuthentication.isAuthenticated(
+                        getBearerToken(exchange)
+                )) {
+            return true;
+        }
+
+        sendResponse(exchange, 401,
+                errorJson("Staff authentication required"));
+        return false;
+    }
+
+    private static String getBearerToken(HttpExchange exchange) {
+        String authorization = exchange.getRequestHeaders()
+                .getFirst("Authorization");
+
+        if (authorization == null
+                || !authorization.startsWith("Bearer ")) {
+            return null;
+        }
+
+        String token = authorization.substring("Bearer ".length()).trim();
+        return token.isEmpty() ? null : token;
     }
 
     // GET /api/orders
@@ -293,6 +425,36 @@ private static void addSampleFoodItems() {
         }
 
         sendResponse(exchange, 200, json.append("]").toString());
+    }
+
+    // GET /api/orders/tracking/{token}
+    private static void getTrackedOrder(
+            HttpExchange exchange,
+            String path
+    ) throws IOException {
+        String token = path.substring("/api/orders/tracking/".length());
+        Order order;
+
+        synchronized (service) {
+            order = service.findOrderByTrackingToken(token);
+        }
+
+        if (order == null) {
+            sendResponse(exchange, 404, errorJson("Order not found"));
+            return;
+        }
+
+        String response = "{"
+                + "\"id\":" + order.getOrderId() + ","
+                + "\"status\":\""
+                + escapeJson(order.getOrderStatus()) + "\","
+                + "\"orderStatus\":\""
+                + escapeJson(order.getOrderStatus()) + "\","
+                + "\"paymentStatus\":\""
+                + order.getPaymentStatus() + "\""
+                + "}";
+
+        sendResponse(exchange, 200, response);
     }
 
     // POST /api/orders
@@ -348,7 +510,7 @@ private static void addSampleFoodItems() {
                 }
 
                 StringBuilder response = new StringBuilder();
-                appendOrderJson(response, order);
+                appendOrderJson(response, order, true);
 
                 sendResponse(exchange, 201, response.toString());
             }
@@ -409,8 +571,7 @@ private static void addSampleFoodItems() {
                     return;
                 }
 
-                if (order.getPayment() != null
-                        || order.getOrderStatus().equals("Paid")) {
+                if (order.getPayment() != null) {
                     sendResponse(exchange, 409,
                             errorJson("This order has already been paid"));
                     return;
@@ -433,6 +594,52 @@ private static void addSampleFoodItems() {
                 StringBuilder response = new StringBuilder();
                 appendOrderJson(response, order);
 
+                sendResponse(exchange, 200, response.toString());
+            }
+
+        } catch (NumberFormatException e) {
+            sendResponse(exchange, 400,
+                    errorJson("Invalid order ID"));
+        } catch (IllegalArgumentException e) {
+            sendResponse(exchange, 400,
+                    errorJson(e.getMessage()));
+        } catch (IllegalStateException e) {
+            sendResponse(exchange, 409,
+                    errorJson(e.getMessage()));
+        }
+    }
+
+    // POST /api/orders/{id}/status
+    private static void updateOrderStatus(
+            HttpExchange exchange,
+            String path
+    ) throws IOException {
+
+        try {
+            String[] pathParts = path.split("/");
+            int orderId = Integer.parseInt(pathParts[3]);
+            Map<String, List<String>> data = readForm(exchange);
+            String status = getValue(data, "status").trim();
+
+            if (status.isEmpty()) {
+                sendResponse(exchange, 400,
+                        errorJson("Order status is required"));
+                return;
+            }
+
+            synchronized (service) {
+                Order order = findOrder(orderId);
+
+                if (order == null) {
+                    sendResponse(exchange, 404,
+                            errorJson("Order not found"));
+                    return;
+                }
+
+                service.updateOrderStatus(orderId, status);
+
+                StringBuilder response = new StringBuilder();
+                appendOrderJson(response, order);
                 sendResponse(exchange, 200, response.toString());
             }
 
@@ -515,6 +722,14 @@ private static void addSampleFoodItems() {
             StringBuilder json,
             Order order
     ) {
+        appendOrderJson(json, order, false);
+    }
+
+    private static void appendOrderJson(
+            StringBuilder json,
+            Order order,
+            boolean includeTrackingToken
+    ) {
 
         json.append("{")
             .append("\"id\":").append(order.getOrderId()).append(",")
@@ -527,8 +742,10 @@ private static void addSampleFoodItems() {
             .append("\"total\":").append(order.calculateTotal()).append(",")
             .append("\"status\":\"")
             .append(escapeJson(order.getOrderStatus())).append("\",")
+            .append("\"orderStatus\":\"")
+            .append(escapeJson(order.getOrderStatus())).append("\",")
             .append("\"paymentStatus\":\"")
-            .append(order.getPayment() == null ? "Pending" : "Paid")
+            .append(order.getPaymentStatus())
             .append("\",")
             .append("\"paymentMethod\":\"")
             .append(getPaymentMethod(order))
@@ -555,7 +772,15 @@ private static void addSampleFoodItems() {
                 .append("}");
         }
 
-        json.append("]}");
+        json.append("]");
+
+        if (includeTrackingToken) {
+            json.append(",\"trackingToken\":\"")
+                    .append(escapeJson(order.getTrackingToken()))
+                    .append("\"");
+        }
+
+        json.append("}");
     }
 
     private static String getPaymentMethod(Order order) {
@@ -699,7 +924,12 @@ private static void addSampleFoodItems() {
         );
 
         exchange.getResponseHeaders().set(
-                "Access-Control-Allow-Headers", "Content-Type"
+                "Access-Control-Allow-Headers",
+                "Content-Type, Authorization"
+        );
+
+        exchange.getResponseHeaders().set(
+                "Cache-Control", "no-store"
         );
     }
 

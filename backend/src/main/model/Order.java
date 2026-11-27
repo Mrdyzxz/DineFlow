@@ -2,16 +2,24 @@
 package model;
 
 import java.time.LocalDate;
+import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import payment.Payment;
 
 public class Order {
 
+    private static final SecureRandom TRACKING_TOKEN_RANDOM =
+            new SecureRandom();
+
     private static final String STATUS_PENDING = "Pending";
     private static final String STATUS_PROCESSING = "Processing";
-    private static final String STATUS_PAID = "Paid";
+    private static final String STATUS_READY = "Ready";
+    private static final String STATUS_COMPLETED = "Completed";
+    private static final String PAYMENT_UNPAID = "Unpaid";
+    private static final String PAYMENT_PAID = "Paid";
 
     private static final String DINE_IN = "Dine In";
     private static final String TAKE_OUT = "Take Out";
@@ -24,6 +32,7 @@ public class Order {
     private String diningOption;
     private ArrayList<OrderItem> items;
     private Payment payment;
+    private final String trackingToken;
 
     // Existing constructor for compatibility
     public Order(int orderId, Customer customer) {
@@ -39,6 +48,7 @@ public class Order {
         this.orderStatus = STATUS_PENDING;
         this.items = new ArrayList<>();
         this.payment = null;
+        this.trackingToken = generateTrackingToken();
 
         setDiningOption(diningOption);
     }
@@ -61,6 +71,14 @@ public class Order {
 
     public String getOrderStatus() {
         return orderStatus;
+    }
+
+    public String getPaymentStatus() {
+        return payment == null ? PAYMENT_UNPAID : PAYMENT_PAID;
+    }
+
+    public String getTrackingToken() {
+        return trackingToken;
     }
 
     public String getDiningOption() {
@@ -99,7 +117,7 @@ public class Order {
     }
 
     public void addItem(FoodItem foodItem, int quantity) {
-        if (payment != null || STATUS_PAID.equals(orderStatus)) {
+        if (payment != null) {
             throw new IllegalStateException(
                     "Items cannot be added after payment."
             );
@@ -134,29 +152,28 @@ public class Order {
 
         if (!STATUS_PENDING.equals(nextStatus)
                 && !STATUS_PROCESSING.equals(nextStatus)
-                && !STATUS_PAID.equals(nextStatus)) {
+                && !STATUS_READY.equals(nextStatus)
+                && !STATUS_COMPLETED.equals(nextStatus)) {
             throw new IllegalArgumentException(
                     "Order status is not recognized."
             );
         }
 
-        if (STATUS_PAID.equals(this.orderStatus)
-                && !STATUS_PAID.equals(nextStatus)) {
-            throw new IllegalStateException(
-                    "A paid order cannot change status."
-            );
+        if (this.orderStatus.equals(nextStatus)) {
+            return;
         }
 
-        if (STATUS_PROCESSING.equals(this.orderStatus)
-                && STATUS_PENDING.equals(nextStatus)) {
-            throw new IllegalStateException(
-                    "A processing order cannot return to pending."
-            );
-        }
+        boolean validTransition =
+                (STATUS_PENDING.equals(this.orderStatus)
+                        && STATUS_PROCESSING.equals(nextStatus))
+                || (STATUS_PROCESSING.equals(this.orderStatus)
+                        && STATUS_READY.equals(nextStatus))
+                || (STATUS_READY.equals(this.orderStatus)
+                        && STATUS_COMPLETED.equals(nextStatus));
 
-        if (STATUS_PAID.equals(nextStatus) && payment == null) {
+        if (!validTransition) {
             throw new IllegalStateException(
-                    "An order must have payment before it can be paid."
+                    "Order status can only move to the next preparation stage."
             );
         }
 
@@ -174,7 +191,7 @@ public class Order {
             );
         }
 
-        if (this.payment != null || STATUS_PAID.equals(orderStatus)) {
+        if (this.payment != null) {
             throw new IllegalStateException(
                     "Payment has already been set for this order."
             );
@@ -195,7 +212,8 @@ public class Order {
         System.out.println("Customer: " + customer.getName());
         System.out.println("Date: " + orderDate);
         System.out.println("Dining Option: " + diningOption);
-        System.out.println("Status: " + orderStatus);
+        System.out.println("Order Status: " + orderStatus);
+        System.out.println("Payment Status: " + getPaymentStatus());
 
         for (OrderItem item : items) {
             item.displayOrderItem();
@@ -203,5 +221,13 @@ public class Order {
 
         System.out.println("-------------------------");
         System.out.println("Total: ₱" + calculateTotal());
+    }
+
+    private static String generateTrackingToken() {
+        byte[] tokenBytes = new byte[32];
+        TRACKING_TOKEN_RANDOM.nextBytes(tokenBytes);
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(tokenBytes);
     }
 }

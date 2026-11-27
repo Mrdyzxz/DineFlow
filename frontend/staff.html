@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DineFlow | Staff Orders</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="staff-page">
+    <header class="staff-header">
+        <div class="brand-logo">DINE<span>FLOW</span></div>
+        <div class="staff-header-actions">
+            <button id="refreshOrders" class="primary-btn" type="button" hidden>
+                Refresh orders
+            </button>
+            <button id="staffLogout" class="staff-secondary-btn" type="button" hidden>
+                Log out
+            </button>
+        </div>
+    </header>
+
+    <main id="staffLogin" class="staff-main">
+        <section class="staff-login-card">
+            <p class="eyebrow">STAFF ACCESS</p>
+            <h1>Sign in to DineFlow</h1>
+            <p class="staff-muted">Use your staff account to manage customer orders.</p>
+            <form id="staffLoginForm" class="staff-login-form">
+                <label for="staffUsername">Username</label>
+                <input id="staffUsername" name="username" autocomplete="username" required>
+                <label for="staffPassword">Password</label>
+                <input id="staffPassword" name="password" type="password"
+                       autocomplete="current-password" required>
+                <button id="staffLoginButton" class="primary-btn" type="submit">
+                    Sign in
+                </button>
+            </form>
+            <p id="staffLoginMessage" class="staff-message" role="status"
+               aria-live="polite" hidden></p>
+        </section>
+    </main>
+
+    <main id="staffDashboard" class="staff-main" hidden>
+        <div class="staff-heading">
+            <div>
+                <p class="eyebrow">RESTAURANT OPERATIONS</p>
+                <h1>Staff Order Dashboard</h1>
+                <p class="staff-muted">Review orders and advance each preparation stage.</p>
+            </div>
+            <p id="lastUpdated" class="staff-updated"></p>
+        </div>
+
+        <p id="orderMessage" class="staff-message" role="status">Loading orders...</p>
+        <section id="orderList" class="staff-orders" aria-live="polite"></section>
+    </main>
+
+    <script src="js/staff.js"></script>
+</body>
+</html>
